@@ -16,8 +16,8 @@ See detailed description [here](https://github.com/mvulf/drop_control/blob/main/
 
 ### Problem setup
 
-![img](./img/drop_gen.png)
-![img](./img/calc_scheme.png)
+![drop_gen](./img/drop_gen.png)
+![calc_scheme](./img/calc_scheme.png)
 
 Piston moves by the hydraulic and friction forces action:
 
@@ -66,6 +66,7 @@ $$
 
 where $\eta$ - mechanical efficiency;
 Coulomb friction force:
+
 $$
     F_C = p_C\cdot\max{(A_h, A_t)}
 $$
@@ -76,7 +77,7 @@ $p_C$ - pressure difference, which is necessary to overcome the dry friction
 
 The code is organized as follows. The **main loop** (see below) is implemented in `MonteCarloSimulationScenario` which starts REINFORCE learning procedure via `run` method. During the main loop all observations, actions, running costs for every episode and step are collected in `IterationBuffer` object which is constructed in `PolicyREINFORCE`. After every iteration `MonteCarloSimulationScenario` calls `REINFORCE_step` method  which does gradient descent step via calling the `optimize` method that is implemented in `Optimizer`.
 
-![code_structure](../drop_control/img/code_structure.jpg)
+![code_structure](./img/code_structure.jpg)
 
 ## Results
 
