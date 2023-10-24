@@ -86,4 +86,4 @@ After **475** iterations conducted simultaneously in notebooks ([reinforce_hydra
 ![last_actions](./img/RHS-HLr-LStd-C_last_actions.png)
 
 ## Literature
-Consider the jet length as objective for the droplet formation control was inspired by [[1](https://doi.org/10.1007/s00348-003-0629-6), [2](https://doi.org/10.1201/9781420040470)]
+The consideration of jet length as an objective for control of the droplet formation was inspired by [[1](https://doi.org/10.1007/s00348-003-0629-6), [2](https://doi.org/10.1201/9781420040470)]
