@@ -20,11 +20,13 @@ See detailed description [here](https://github.com/mvulf/drop_control/blob/main/
 ![img](./img/calc_scheme.png)
 
 Piston moves by the hydraulic and friction forces action:
+
 $$
     m_p\ddot{x_p} = m_pg + F_h - F_{fr},
 $$
 
-#### Hydraulic force $F_h$:
+#### Hydraulic force:
+
 $$
     F_h = p_h A_h - p_t A_t,
 $$
@@ -36,11 +38,13 @@ $$
 $$
 
 test container pressure (according to the Darcy-Weisbach equation):
+
 $$
     p_t = p_{atm} + \frac{\zeta_{exit}\rho_t D_t^4}{2D_{exit}^4}\dot{x_p}^2
 $$
 
 Hydraulic/Test container area:
+
 $$
     A_{h,t}=\frac{\pi D_{h,t}^2}{4}
 $$
@@ -50,8 +54,8 @@ $p_{atm}$ - ambient environment (atmosphere) pressure;
 $\zeta_{th}, \zeta_{exit}$ - hydraulic loss coefficients at throttle and at syringe exit respectively;
 $\rho_h, \rho_t$ - densities of the hydraulic and test containers liquids
 
-#### Friction $F_{fr}$
-Friction can be considered both by a stribeck curve or mechanical efficiency.
+#### Friction
+Friction $F_{fr}$ can be considered both by a stribeck curve or mechanical efficiency.
 Let us use a mechanical efficiency approach:
 
 ![img](img/mechanical_efficiency.png)
