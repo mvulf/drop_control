@@ -23,14 +23,18 @@ Piston moves by the hydraulic and friction forces action:
 $$
     m_p\ddot{x_p} = m_pg + F_h - F_{fr},
 $$
+
 #### Hydraulic force $F_h$:
 $$
     F_h = p_h A_h - p_t A_t,
 $$
+
 where hydraulic container pressure, according to the Darcy-Weisbach equation and relationship of the lateral surface area of the throttle "cylinder" to the position of the spool (**action**) $A_{th}(t) = \pi D_{th} x_{th}(t)$:
+
 $$
     p_h = p_l - \frac{\zeta_{th}\rho_h D_h^4}{32D_{th}^2}\left(\frac{\dot{x_p}}{x_{th}}\right)^2
 $$
+
 test container pressure (according to the Darcy-Weisbach equation):
 $$
     p_t = p_{atm} + \frac{\zeta_{exit}\rho_t D_t^4}{2D_{exit}^4}\dot{x_p}^2
@@ -61,6 +65,7 @@ Coulomb friction force:
 $$
     F_C = p_C\cdot\max{(A_h, A_t)}
 $$
+
 $p_C$ - pressure difference, which is necessary to overcome the dry friction
 
 ### Solution Implementation
