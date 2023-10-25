@@ -12,7 +12,7 @@ The **goal** of this project is to create an optimal control of the droplet gene
 - Folder [tests](https://github.com/mvulf/drop_control/tree/main/tests) consists of the system and simulator tests.
 
 ## Brief Description
-See detailed description [here](https://github.com/mvulf/drop_control/blob/main/reinforce_hydraulic_system.ipynb): state dynamics function, observations, running cost function, NN policy model, Policy, Monte Carlo Simulation Scenario, Main loop
+See detailed description [here](https://github.com/mvulf/drop_control/blob/main/reinforce_hydraulic_system.ipynb) (state dynamics function, observations, running cost function, NN policy model, Policy, Monte Carlo Simulation Scenario, Main loop).
 
 ### Problem setup
 
@@ -73,7 +73,30 @@ $$
 
 $p_C$ - pressure difference, which is necessary to overcome the dry friction
 
-### Solution Implementation
+#### Droplet formation and running cost function
+
+Let us use jet size $l_{jet} [mm]$ and jet velocity $v_{jet} [mm/s]$ as observations of the dynamic process.
+
+We want to generate droplet in such a way that:
+
+$$
+    \begin{aligned}
+    & l_{jet} \to l_{crit}\\
+    & v_{jet} \to 0~(\text{when } l_{jet}\geq l_{crit})\\
+    & \text{ where: }\\
+    & l_{jet} = 10^{-3}\frac{D^2_t}{D^2_{exit}} (x_p - x_{p0}) \\
+    & v_{jet} = 10^{-3}\frac{D^2_t}{D^2_{exit}} v_p \\
+    \end{aligned}
+$$
+
+Different ways to implement the **running cost function** were considered. 
+Finally, this running cost function is used:
+
+$$
+    r(l_{jet}, v_{jet}) = \left(1 - \frac{l_{jet}}{l_{crit}} \right)^2 - sign\left(1 - \frac{l_{jet}}{l_{crit}}\right) v_{jet} |v_{jet}|
+$$
+
+### Implementation of the REINFORCE algorithm
 
 The code is organized as follows. The **main loop** (see below) is implemented in `MonteCarloSimulationScenario` which starts REINFORCE learning procedure via `run` method. During the main loop all observations, actions, running costs for every episode and step are collected in `IterationBuffer` object which is constructed in `PolicyREINFORCE`. After every iteration `MonteCarloSimulationScenario` calls `REINFORCE_step` method  which does gradient descent step via calling the `optimize` method that is implemented in `Optimizer`.
 
