@@ -1,6 +1,19 @@
 # Droplet Generator optimal control
 The **goal** of this project is to create an optimal control of the droplet generator (it's hydraulic part) by Reinforcement Learning.
 
+## How to launch
+Follow the instructions to run the project:
+- Clone repository:
+```
+git clone https://github.com/mvulf/drop_control
+```
+- In the cloned repository please run this command:
+```
+pip install -r requirements.txt
+```
+- Open `reinforce_hydraulic_system.ipynb` and 'Run All'
+- Also you can launch all others 'research' notebooks (see detailed description in "Content" below)
+
 ## Content
 - Current main notebook with a detailed description of the Droplet Generation System is introduced in the root of the repository ([reinforce_hydraulic_system.ipynb](https://github.com/mvulf/drop_control/blob/main/reinforce_hydraulic_system.ipynb))
 - Conducted research is introduced in the [research](https://github.com/mvulf/drop_control/tree/main/research) folder:
