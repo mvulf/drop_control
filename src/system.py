@@ -42,8 +42,8 @@ class HydraulicSystem:
         sigma_work: float = 73e-3,
         mu_work: float = 1.0e-3,
         v_j: float = 200.,
-        jet_length_std = 5e-2,
-        jet_velocity_std = 1e-2,  
+        jet_length_std = 1e-1,
+        jet_velocity_std = 5e-2,  
     ) -> None:
         """Droplet generator (hydraulic) system
 
@@ -358,8 +358,8 @@ class HydraulicSystem:
         return 1e-3 * (x_p - self.x_p_init) * self.D_work_exit_2_ratio
     
     
-    def get_true_observation(self, state: np.ndarray) -> np.ndarray:
-        """Get true observations (relative jet length and relative jet velocity), without sensors noise
+    def get_clean_observation(self, state: np.ndarray) -> np.ndarray:
+        """Get clean observations (relative jet length and relative jet velocity), without sensors noise
 
         Args:
             state (np.ndarray): system state
@@ -393,7 +393,7 @@ class HydraulicSystem:
         Returns:
             np.ndarray: noised observation (rel. jet length, rel. velocity [1/control time step])
         """
-        observation = self.get_true_observation(state)
+        observation = self.get_clean_observation(state)
         
         # relative jet length with noise
         observation[0] += np.random.normal(

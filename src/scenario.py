@@ -1,5 +1,13 @@
 import pandas as pd
 import numpy as np
+import torch
+
+import pickle
+
+from typing import Tuple, Dict, Optional, Callable, Type, Any
+
+from tqdm.notebook import tqdm
+from IPython.display import clear_output
 
 from src.simulator import Simulator
 from src.policy import PDController
@@ -14,18 +22,20 @@ plt.rcParams.update({
     'font.size': 14,
 })
 
+
+
 class SimulationScenario:
     
     def __init__(
         self,
         simulator: Simulator,
-        controller: PDController,
+        policy,
         data_path:str,
         discount_factor: float = 1.0,
         dpi: int = 400,
     ):
         self.simulator = simulator
-        self.controller = controller
+        self.policy = policy
         
         self.data_path = data_path
         
@@ -40,6 +50,7 @@ class SimulationScenario:
         self.observations = []
         self.actions = []
         self.states = []
+        self.clean_observations = []
         
         self.total_objective = 0
     
@@ -112,92 +123,388 @@ class SimulationScenario:
             ) = self.simulator.get_sim_step_data()
 
             # PD CONTROLLER
-            new_action = self.controller.get_action(observation)  
+            new_action = self.policy.get_action(observation)  
       
             self.simulator.set_action(new_action)
             self.observations.append(observation)
             self.actions.append(action)
             self.states.append(state)
+            self.clean_observations.append(
+                self.simulator.system.get_clean_observation(state)
+            )
 
         total_obj = self.compute_total_objective(
-            observations=self.observations,
+            observations=self.clean_observations,
             actions=self.actions,
         )
         
         print(f'Total objective: {total_obj:.5f}')
         
     
-    def plot_data(self, log_data=True):
+    def plot_observations(
+        self,
+        observations:pd.DataFrame,
+        clean_observations:pd.DataFrame = None,
+        y_labels:tuple = (
+            r"$x^\mathrm{rel}_\mathrm{jet}$",
+            r"$v^\mathrm{rel}_\mathrm{jet}$"
+        ),
+        title:str = "Observations"
+    ):
+
+        fig, axes = plt.subplots(len(y_labels), 1)
+        
+        for i, label in enumerate(y_labels):
+            axes[i].set_ylabel(label)
+            
+            obs_linestyle = '-'
+            if clean_observations is not None:
+                clean_observations.iloc[:,i].plot(
+                    label='clean observations',
+                    ax=axes[i],
+                    grid=True,
+                    marker='.',
+                    linestyle="-"
+                )
+                obs_linestyle = ''
+            
+            observations.iloc[:, i].plot(
+                label='observations',
+                ax=axes[i],
+                grid=True,
+                marker='x',
+                linestyle=obs_linestyle,
+                legend=False,
+            )
+            
+        if clean_observations is not None:
+            axes[0].legend()
+
+        axes[0].set_xticklabels([])
+        
+        axes[-1].set_xlabel(r"step number $(t)$")
+        fig.suptitle(title)
+                
+        fig = axes[0].get_figure()
+        fig.tight_layout()
+        
+        return fig
+    
+    
+    def plot_actions(
+        self,
+        pulse_actions:pd.DataFrame,
+        throttle_state:pd.DataFrame = None,
+        y_label:str = r"$x^\mathrm{act}_\mathrm{th}$ [µm]",
+        title:str = 'Throttle position (action)',
+    ):
+        fig, ax = plt.subplots()
+        
+        pulse_actions.plot.line(
+            x='step',
+            y='action',
+            xlabel="step number $(t)$",
+            title=title,
+            label='action',
+            grid=True,
+            legend=False,
+            ax=ax,
+        )
+        ax.set_ylabel(y_label)
+        
+        if throttle_state is not None:
+            ax.plot(
+                throttle_state,
+                marker='.',
+                label=r"$x_\mathrm{th}$"
+            )
+            ax.legend()
+            
+        fig.tight_layout()
+        
+        return fig
+    
+    
+    def plot_data(
+        self, 
+        log_data=True,
+        dt_string=None,
+    ):
         """Plot results"""
-        # TODO: MERGE WITH PLOT DATA FROM MONTECARLO
-        if log_data:
-            # datetime object containing current date and time
-            now = datetime.now()
-            # %Y-%m-%d_%H%M%S
-            dt_string = now.strftime("%Y-%m-%d_%H%M%S")
-            print("log date and time =", dt_string)
         
         observations = pd.DataFrame(
             data=np.array(self.observations)
         )
         
-        # actions = pd.DataFrame(
-        #     data=self.actions #self.last_actions.loc[0].values
-        # )
-        
-        ax_jet_length, ax_jet_velocity = observations.plot(
-            xlabel="step number $(t)$",
-            title="Observations",
-            legend=False,
-            subplots=True,
-            grid=True,
-            marker='.'
+        clean_observations = pd.DataFrame(
+            data=np.array(self.clean_observations)
         )
-        
-        ax_jet_length.set_ylabel(r"$x^\mathrm{rel}_\mathrm{jet}$")
-        ax_jet_velocity.set_ylabel(r"$v^\mathrm{rel}_\mathrm{jet}$")
-        
-        plt.tight_layout()
-        if log_data:
-            plt.savefig(
-                self.data_path+f"{dt_string}_observations.pdf", 
-                dpi=self.dpi,
-            )
 
+        obs_fig = self.plot_observations(observations, clean_observations)
+        
         actions_arr = self.get_real_actions(self.actions)
 
         pulse_actions = pd.DataFrame(
             data=actions_arr,
             columns=['step', 'action']
         )
-
-        ax_actions = pulse_actions.plot.line(
-            x='step',
-            y='action',
-            xlabel="step number $(t)$",
-            title="Throttle position (action)",
-            label='action',
-            grid=True,
+        
+        throttle_state = np.array(self.states)[:, 2]
+        throttle_state = pd.DataFrame(
+            data=throttle_state,
         )
-        ax_actions.set_ylabel(r"$x^\mathrm{act}_\mathrm{th}$ [µm]")
-        
-        states_arr = np.array(self.states)
-        ax_actions.plot(states_arr[:, 2], marker=".", label='$x_\mathrm{th}$')
-        
-        ax_actions.legend()
 
-        plt.tight_layout()
+        act_fig = self.plot_actions(pulse_actions, throttle_state)
+
         if log_data:
-            plt.savefig(
+            if dt_string is None:
+                now = datetime.now()
+                dt_string = now.strftime("%Y-%m-%d_%H%M%S")
+                print("log date and time =", dt_string)
+            
+            obs_fig.savefig(
+                self.data_path+f"{dt_string}_observations.pdf", 
+                dpi=self.dpi,
+            )
+            observations.to_csv(
+                self.data_path+f"{dt_string}_observations.csv"
+            )
+            clean_observations.to_csv(
+                self.data_path+f"{dt_string}_clean_observations.csv"
+            )
+
+            act_fig.savefig(
                 self.data_path+f"{dt_string}_actions.pdf", 
                 dpi=self.dpi
             )
-            
-            observations.to_csv(self.data_path+f"{dt_string}_observations.csv")
-            actions = pd.DataFrame(
-                data=self.actions,
-            )
-            actions.to_csv(self.data_path+f"{dt_string}_actions.csv")
+            pulse_actions.to_csv(self.data_path+f"{dt_string}_actions.csv")
             
         plt.show()
+
+
+
+class MonteCarloSimulationScenario(SimulationScenario):
+    """Run whole REINFORCE procedure"""
+
+    def __init__(
+        self,
+        N_episodes: int,
+        N_iterations: int,
+        *args,
+        termination_criterion: Callable[
+            [np.array, np.array, float, float], bool
+        ] = lambda *args: False,
+        **kwargs,
+    ):
+        """Initialize scenario for main loop
+
+        Args:
+            simulator (Simulator): simulator for computing system dynamics
+            policy (PolicyREINFORCE): REINFORCE gradient stepper
+            N_episodes (int): number of episodes in one iteration
+            N_iterations (int): number of iterations
+            discount_factor (float, optional): discount factor for running objectives. Defaults to 1
+            termination_criterion (Callable[[np.array, np.array, float, float], bool], optional): criterion for episode termination. Takes observation, action, running_objective, total_objectove. Defaults to lambda*args:False
+        """
+
+        super().__init__(*args, **kwargs)
+        
+        self.N_episodes = N_episodes
+        self.N_iterations = N_iterations
+        self.termination_criterion = termination_criterion
+
+        self.total_objectives_episodic = []
+        self.learning_curve = []
+        self.last_observations = None
+        
+        self.iteration_data = []
     
+    
+    def run(self) -> None:
+        """Run main loop"""
+
+        eps = 0.1 # to calculate first changes
+        means_total_objectives = [eps]
+        for iteration_idx in range(self.N_iterations):
+            if iteration_idx % 10 == 0:
+                clear_output(wait=True)
+                # WRITE CURRENT RESULT
+            for episode_idx in tqdm(range(self.N_episodes)):
+                terminated = False
+                self.clean_data() # Clean data from previous episode
+                # Conduct simulations for one episode
+                while self.simulator.step():
+                    (
+                        step_idx,
+                        state,
+                        observation,
+                        action, # we do not use this
+                    ) = self.simulator.get_sim_step_data()
+
+                    new_action = (
+                        self.policy.model.sample(torch.tensor(observation).float())
+                        .detach()
+                        .cpu()
+                        .numpy()
+                    )
+                    discounted_running_objective = self.discount_factor ** (
+                        step_idx
+                    ) * self.compute_running_objective(observation, new_action)
+                    # for learning curve plotting
+                    self.total_objective += discounted_running_objective
+
+                    if not terminated and self.termination_criterion(
+                        observation,
+                        new_action,
+                        discounted_running_objective,
+                        self.total_objective,
+                    ):
+                        terminated = True
+
+                    # Thus, if terminated - stop to add data in buffer
+                    if not terminated:
+                        self.policy.buffer.add_step_data(
+                            np.copy(observation),
+                            np.copy(new_action),
+                            np.copy(discounted_running_objective),
+                            step_idx,
+                            episode_idx,
+                        )
+                        # Keep observations and actions
+                        self.observations.append(observation)
+                        self.actions.append(action)
+                        # Keep states and observations without noise
+                        self.states.append(state)
+                        self.clean_observations.append(
+                            self.simulator.system.get_clean_observation(state)
+                        )
+                        
+                    self.simulator.set_action(new_action) # set action for the next step
+                
+                self.simulator.reset() # before next episode
+                
+                # Used for learning curve plotting
+                # Save for clean observations!
+                # REAL PERFORMANCE
+                real_total_objective = self.compute_total_objective(
+                    observations=self.clean_observations,
+                    actions=self.actions,
+                )
+                
+                self.total_objectives_episodic.append(real_total_objective)
+                
+                # self.total_objective = 0
+            
+            # Get data for progress estimation
+            self.learning_curve.append(np.mean(self.total_objectives_episodic))
+            self.last_observations = pd.DataFrame(
+                index=self.policy.buffer.episode_ids,
+                data=self.policy.buffer.observations.copy(),
+            )
+            self.last_actions = pd.DataFrame(
+                index=self.policy.buffer.episode_ids,
+                data=self.policy.buffer.actions.copy(),
+            )
+            
+            self.policy.REINFORCE_step()
+
+            # Output current result of the iteration
+            means_total_objectives.append(np.mean(self.total_objectives_episodic)) # means by episodes
+            change = (means_total_objectives[-1] / means_total_objectives[-2] - 1) * 100
+            sign = "-" if np.sign(change) == -1 else "+"
+            print(
+                f"Iteration: {iteration_idx + 1} / {self.N_iterations}, "
+                + f"mean total cost {round(means_total_objectives[-1], 2)}, "
+                + f"% change: {sign}{abs(round(change,2))}, "
+                + f"last observation: {self.last_observations.iloc[-1].values.reshape(-1)}",
+                end="\n",
+            )
+
+            self.total_objectives_episodic = [] # before next iteration
+            
+            # Save last observations and actions
+            if iteration_idx % 1 == 0: # Return 10
+                last_observations, last_actions = (
+                    self.get_last_observations_and_actions()
+                )
+                self.iteration_data.append(
+                    {
+                        'iteration_idx': iteration_idx, 
+                        'observations': last_observations, 
+                        'actions': last_actions,
+                        'states': np.array(self.states),
+                        'clean_observations': np.array(self.clean_observations),
+                    }
+                )
+                
+
+    def get_last_observations_and_actions(self):
+        last_episode_index = self.last_observations.index[-1] # self.N_episodes - 1
+        last_observations = (
+            self.last_observations.loc[last_episode_index].values
+        )
+        last_actions = self.last_actions.loc[last_episode_index].values
+        
+        return last_observations, last_actions
+    
+    
+    def plot_learning_curve(
+        self, 
+        data:pd.DataFrame, 
+        y_log_scale=False,
+    ):
+        if data.shape[0] == 0:
+            print('no data to plot')
+            return
+        na_mask = data.isna()
+        not_na_mask = ~na_mask
+        interpolated_values = data.interpolate()
+        interpolated_values[not_na_mask] = None
+        
+        fig, ax = plt.subplots()
+        
+        if y_log_scale:
+            ax.set_yscale('log')
+        
+        data.plot(marker="o", markersize=3, ax=ax)
+        interpolated_values.plot(linestyle="--", ax=ax)
+        ax.set_title('Total cost by iteration')
+        ax.set_xlabel(r'iteration number $(i)$')
+        ax.set_ylabel('total cost')
+        
+        fig.tight_layout()
+        
+        return fig
+    
+    
+    def plot_data(self, log_data=True, y_log_scale=False):
+        dt_string = None
+        if log_data:
+            now = datetime.now()
+            dt_string = now.strftime("%Y-%m-%d_%H%M%S")
+            print("log date and time =", dt_string)
+        
+        # Plot learning curve
+        data = pd.Series(
+            index=range(1, len(self.learning_curve) + 1), 
+            data=self.learning_curve
+        )
+        
+        curve_fig = self.plot_learning_curve(data, y_log_scale=y_log_scale)
+        
+        # Plot and save observations and actions
+        super().plot_data(log_data, dt_string=dt_string)
+        
+        # Save learning curve and all iterations
+        if log_data:
+            curve_fig.savefig(
+                self.data_path+f"{dt_string}_learning curve.pdf", 
+                dpi=self.dpi,
+            )
+            data.to_csv(self.data_path+f"{dt_string}_learning curve.csv")
+            
+            # Save iteration observations and actions
+            with open(
+                self.data_path+f"{dt_string}_iteration_data.pkl", 'wb'
+            ) as file:
+                pickle.dump(self.iteration_data, file)

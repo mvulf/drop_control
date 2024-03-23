@@ -45,6 +45,7 @@ class Simulator:
         self.current_step_idx = 0
         self.state = self.state_init.copy()
         self.action = np.zeros(self.system.dim_action)
+        self.ode_results = []
         self.system.reset(step_size=self.step_size)
     
     
@@ -78,8 +79,8 @@ class Simulator:
                 np.ndarray: rhs (Dstates) for the ode-solver
             """
             return self.system.compute_dynamics(y, action)
-        
-        next_state = solve_ivp(
+    
+        ode_results = solve_ivp(
             fun=rhs, 
             t_span=(0, self.step_size), 
             y0=state,
@@ -88,9 +89,11 @@ class Simulator:
             # # DELETE
             # first_step=self.first_step,
             # max_step=self.max_step,
-        ).y.T[-1]
+        )
         
-        return next_state
+        next_state = ode_results.y.T[-1]
+        
+        return next_state, ode_results
     
     
     def step(self) -> bool:
@@ -101,7 +104,8 @@ class Simulator:
         """
         
         if self.current_step_idx <= self.N_steps:
-            self.state = self.system_transition_function(self.state, self.action)
+            self.state, ode_results = self.system_transition_function(self.state, self.action)
+            self.ode_results.append(ode_results) # For checking
             self.current_step_idx += 1
             return True
         return False
