@@ -42,8 +42,8 @@ class HydraulicSystem:
         sigma_work: float = 73e-3,
         mu_work: float = 1.0e-3,
         v_j: float = 200.,
-        jet_length_std = 1e-1,
-        jet_velocity_std = 5e-2,  
+        jet_length_std = 5e-2,
+        jet_velocity_std = 1e-2,  
     ) -> None:
         """Droplet generator (hydraulic) system
 
