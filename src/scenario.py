@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import torch
 
+import os
+
 import pickle
 
 from typing import Tuple, Dict, Optional, Callable, Type, Any
@@ -30,18 +32,23 @@ class SimulationScenario:
         self,
         simulator: Simulator,
         policy,
-        data_path:str,
+        root_data_path:str,
         discount_factor: float = 1.0,
         dpi: int = 400,
+        seed: int = None,
     ):
         self.simulator = simulator
         self.policy = policy
         
-        self.data_path = data_path
+        self.root_data_path = root_data_path
         
         self.discount_factor = discount_factor
         
         self.dpi = dpi
+        
+        self.seed = seed
+        
+        self.data_path = None
         
         self.clean_data()
         
@@ -228,7 +235,6 @@ class SimulationScenario:
     def plot_data(
         self, 
         log_data=True,
-        dt_string=None,
     ):
         """Plot results"""
         
@@ -257,27 +263,36 @@ class SimulationScenario:
         act_fig = self.plot_actions(pulse_actions, throttle_state)
 
         if log_data:
-            if dt_string is None:
+            if self.data_path is None:
                 now = datetime.now()
                 dt_string = now.strftime("%Y-%m-%d_%H%M%S")
-                print("log date and time =", dt_string)
+                experiment_name = dt_string
+                if self.seed is not None:
+                    experiment_name += f'_seed_{self.seed}'
+                self.data_path = os.path.join(self.root_data_path, experiment_name)
+                os.mkdir(self.data_path)
+                print("log date and time =", self.data_path)
             
             obs_fig.savefig(
-                self.data_path+f"{dt_string}_observations.pdf", 
+                os.path.join(self.data_path, "observations.pdf"), 
                 dpi=self.dpi,
             )
             observations.to_csv(
-                self.data_path+f"{dt_string}_observations.csv"
+                os.path.join(self.data_path, "observations.csv")
             )
             clean_observations.to_csv(
-                self.data_path+f"{dt_string}_clean_observations.csv"
+                os.path.join(self.data_path, "clean_observations.csv")
             )
 
             act_fig.savefig(
-                self.data_path+f"{dt_string}_actions.pdf", 
+                os.path.join(self.data_path, "actions.pdf"), 
                 dpi=self.dpi
             )
-            pulse_actions.to_csv(self.data_path+f"{dt_string}_actions.csv")
+            pulse_actions.to_csv(
+                os.path.join(self.data_path, "actions.csv")
+            )
+            
+            self.data_path = None
             
         plt.show()
 
@@ -478,11 +493,16 @@ class MonteCarloSimulationScenario(SimulationScenario):
     
     
     def plot_data(self, log_data=True, y_log_scale=False):
-        dt_string = None
+        experiment_name = None
         if log_data:
             now = datetime.now()
             dt_string = now.strftime("%Y-%m-%d_%H%M%S")
-            print("log date and time =", dt_string)
+            experiment_name = dt_string
+            if self.seed is not None:
+                experiment_name += f'_seed_{self.seed}'
+            self.data_path = os.path.join(self.root_data_path, experiment_name)
+            os.mkdir(self.data_path)
+            print("log date and time =", self.data_path)
         
         # Plot learning curve
         data = pd.Series(
@@ -492,19 +512,23 @@ class MonteCarloSimulationScenario(SimulationScenario):
         
         curve_fig = self.plot_learning_curve(data, y_log_scale=y_log_scale)
         
-        # Plot and save observations and actions
-        super().plot_data(log_data, dt_string=dt_string)
-        
         # Save learning curve and all iterations
         if log_data:
             curve_fig.savefig(
-                self.data_path+f"{dt_string}_learning curve.pdf", 
+                os.path.join(self.data_path, "learning_curve.pdf"),
                 dpi=self.dpi,
             )
-            data.to_csv(self.data_path+f"{dt_string}_learning curve.csv")
+            data.to_csv(
+                os.path.join(self.data_path, "learning curve.csv")
+            )
             
             # Save iteration observations and actions
             with open(
-                self.data_path+f"{dt_string}_iteration_data.pkl", 'wb'
+                os.path.join(self.data_path, "iteration_data.pkl"), 'wb'
             ) as file:
                 pickle.dump(self.iteration_data, file)
+        
+        # Plot and save observations and actions. THEN, REMOVE data_path folder
+        super().plot_data(log_data)
+        
+        
