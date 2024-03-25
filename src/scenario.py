@@ -292,7 +292,7 @@ class SimulationScenario:
                 os.path.join(self.data_path, "actions.csv")
             )
             
-            self.data_path = None
+            # self.data_path = None
             
         plt.show()
 
@@ -309,6 +309,8 @@ class MonteCarloSimulationScenario(SimulationScenario):
         termination_criterion: Callable[
             [np.array, np.array, float, float], bool
         ] = lambda *args: False,
+        dt_string: str = None,
+        log_each_iteration: bool = True,
         **kwargs,
     ):
         """Initialize scenario for main loop
@@ -333,6 +335,9 @@ class MonteCarloSimulationScenario(SimulationScenario):
         self.last_observations = None
         
         self.iteration_data = []
+        
+        self.dt_string = dt_string
+        self.log_each_iteration = log_each_iteration
     
     
     def run(self) -> None:
@@ -438,7 +443,7 @@ class MonteCarloSimulationScenario(SimulationScenario):
             self.total_objectives_episodic = [] # before next iteration
             
             # Save last observations and actions
-            if iteration_idx % 1 == 0: # Return 10
+            if iteration_idx % 1 == 0: # Return 10, if required
                 last_observations, last_actions = (
                     self.get_last_observations_and_actions()
                 )
@@ -451,6 +456,8 @@ class MonteCarloSimulationScenario(SimulationScenario):
                         'clean_observations': np.array(self.clean_observations),
                     }
                 )
+                if self.log_each_iteration:
+                    self.log_data()
                 
 
     def get_last_observations_and_actions(self):
@@ -492,17 +499,68 @@ class MonteCarloSimulationScenario(SimulationScenario):
         return fig
     
     
-    def plot_data(self, log_data=True, y_log_scale=False):
-        experiment_name = None
-        if log_data:
-            now = datetime.now()
-            dt_string = now.strftime("%Y-%m-%d_%H%M%S")
-            experiment_name = dt_string
+    def log_data(self):
+        if self.data_path is None:
+            if self.dt_string is None:
+                now = datetime.now()
+                self.dt_string = now.strftime("%Y-%m-%d_%H%M%S")
+            experiment_name = self.dt_string
             if self.seed is not None:
                 experiment_name += f'_seed_{self.seed}'
             self.data_path = os.path.join(self.root_data_path, experiment_name)
             os.mkdir(self.data_path)
-            print("log date and time =", self.data_path)
+            print("log folder:", self.data_path)
+        
+        data = pd.Series(
+            index=range(1, len(self.learning_curve) + 1), 
+            data=self.learning_curve
+        )
+        data.to_csv(
+            os.path.join(self.data_path, "learning curve.csv")
+        )
+        
+        # Save iteration observations and actions
+        with open(
+            os.path.join(self.data_path, "iteration_data.pkl"), 'wb'
+        ) as file:
+            pickle.dump(self.iteration_data, file)
+        
+        observations = pd.DataFrame(
+            data=np.array(self.observations)
+        )
+        observations.to_csv(
+            os.path.join(self.data_path, "observations.csv")
+        )
+        
+        clean_observations = pd.DataFrame(
+            data=np.array(self.clean_observations)
+        )
+        clean_observations.to_csv(
+            os.path.join(self.data_path, "clean_observations.csv")
+        )
+        
+        actions_arr = self.get_real_actions(self.actions)
+        pulse_actions = pd.DataFrame(
+            data=actions_arr,
+            columns=['step', 'action']
+        )
+        pulse_actions.to_csv(
+            os.path.join(self.data_path, "actions.csv")
+        )
+    
+    
+    def plot_data(self, log_data=True, y_log_scale=False):
+        experiment_name = None
+        if log_data:
+            if self.data_path is None:
+                now = datetime.now()
+                dt_string = now.strftime("%Y-%m-%d_%H%M%S")
+                experiment_name = dt_string
+                if self.seed is not None:
+                    experiment_name += f'_seed_{self.seed}'
+                self.data_path = os.path.join(self.root_data_path, experiment_name)
+                os.mkdir(self.data_path)
+                print("log date and time =", self.data_path)
         
         # Plot learning curve
         data = pd.Series(
@@ -530,5 +588,7 @@ class MonteCarloSimulationScenario(SimulationScenario):
         
         # Plot and save observations and actions. THEN, REMOVE data_path folder
         super().plot_data(log_data)
+        
+        plt.show()
         
         
