@@ -5,6 +5,8 @@ import torch
 import random
 import os
 
+from datetime import datetime
+
 from src.system import HydraulicSystem
 from src.simulator import Simulator
 from src.policy import PolicyREINFORCE, GaussianPDFModel, Optimizer
@@ -95,6 +97,7 @@ def launch(seed):
         discount_factor=discount_factor,
         root_data_path=data_path,
         seed=SEED,
+        dt_string=dt_string,
     )
     
     try:
@@ -114,8 +117,12 @@ def launch(seed):
 
 if __name__ == '__main__':
 
-    seed_list = list(range(1,11))
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d_%H%M%S")
+    print(f'Time start: {dt_string}')
+    
+    seed_list = list(range(1,14))
     print(seed_list)
 
-    with Pool(10) as p:
+    with Pool(14) as p:
         print(p.map(launch, seed_list))
