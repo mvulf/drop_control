@@ -1,0 +1,16 @@
+Policy (GaussianPDFModel) Perceptron
+action_bounds_policy [µm] = [[-20.  30.]]
+n_hidden_layers_policy = 1
+dim_hidden_policy = 2
+scale_factor_policy = 10.0
+std_policy = 0.01
+
+Policy Optimizer
+opt_method_policy = <class 'torch.optim.adam.Adam'>
+opt_options_policy = {'lr': 0.1}
+
+MonteCarloSimulationScenario
+N_episodes = 5
+N_iterations = 300
+discount_factor = 1.0
+Time start: 2024-03-26_103819
