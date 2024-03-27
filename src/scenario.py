@@ -36,6 +36,7 @@ class SimulationScenario:
         discount_factor: float = 1.0,
         dpi: int = 400,
         seed: int = None,
+        dt_string: str = None,
     ):
         self.simulator = simulator
         self.policy = policy
@@ -49,6 +50,8 @@ class SimulationScenario:
         self.seed = seed
         
         self.data_path = None
+        
+        self.dt_string = dt_string
         
         self.clean_data()
         
@@ -264,14 +267,15 @@ class SimulationScenario:
 
         if log_data:
             if self.data_path is None:
-                now = datetime.now()
-                dt_string = now.strftime("%Y-%m-%d_%H%M%S")
-                experiment_name = dt_string
+                if self.dt_string is None:
+                    now = datetime.now()
+                    self.dt_string = now.strftime("%Y-%m-%d_%H%M%S")
+                experiment_name = self.dt_string
                 if self.seed is not None:
                     experiment_name += f'_seed_{self.seed}'
                 self.data_path = os.path.join(self.root_data_path, experiment_name)
                 os.mkdir(self.data_path)
-                print("log date and time =", self.data_path)
+                print("log folder:", self.data_path)
             
             obs_fig.savefig(
                 os.path.join(self.data_path, "observations.pdf"), 
@@ -309,7 +313,6 @@ class MonteCarloSimulationScenario(SimulationScenario):
         termination_criterion: Callable[
             [np.array, np.array, float, float], bool
         ] = lambda *args: False,
-        dt_string: str = None,
         log_each_iteration: bool = True,
         **kwargs,
     ):
@@ -336,7 +339,6 @@ class MonteCarloSimulationScenario(SimulationScenario):
         
         self.iteration_data = []
         
-        self.dt_string = dt_string
         self.log_each_iteration = log_each_iteration
     
     
