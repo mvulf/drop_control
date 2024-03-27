@@ -27,11 +27,11 @@ action_bounds_policy = np.array([[-20., 30]]) # These actions are expanded in co
 
 # Optimizer params
 opt_method_policy = torch.optim.Adam
-opt_options_policy = dict(lr=1.0e-1) # 1.0e-2
+opt_options_policy = dict(lr=2.0e-1) # 1.0e-2
 
 # MonteCarloSimulationScenario params
 N_episodes = 5 # Increasing the number of episodes stabilizes learning, was 5
-N_iterations = 300 # was 300
+N_iterations = 150 # was 300
 discount_factor = 1.0
 
 # PRINT HYPERPARAMS
@@ -122,7 +122,7 @@ def launch(seed):
 
 if __name__ == '__main__':
     
-    seed_list = list(range(8,15))
+    seed_list = list(range(40,47))
     print(seed_list)
 
     with Pool(7) as p:
