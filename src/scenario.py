@@ -25,7 +25,6 @@ plt.rcParams.update({
 })
 
 
-
 class SimulationScenario:
     
     def __init__(
@@ -299,6 +298,39 @@ class SimulationScenario:
             # self.data_path = None
             
         plt.show()
+
+
+
+class PulseSimulationScenario(SimulationScenario):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def run(self):
+        while self.simulator.step():
+            (
+                step_idx,
+                state,
+                observation,
+                action,
+            ) = self.simulator.get_sim_step_data()
+
+            # PD CONTROLLER
+            new_action = self.policy.get_action(step_idx)  
+      
+            self.simulator.set_action(new_action)
+            self.observations.append(observation)
+            self.actions.append(action)
+            self.states.append(state)
+            self.clean_observations.append(
+                self.simulator.system.get_clean_observation(state)
+            )
+
+        total_obj = self.compute_total_objective(
+            observations=self.clean_observations,
+            actions=self.actions,
+        )
+        
+        print(f'Total objective: {total_obj:.5f}')
 
 
 
