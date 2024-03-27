@@ -23,15 +23,15 @@ n_hidden_layers_policy = 1
 dim_hidden_policy = 2
 scale_factor_policy = 10.0
 std_policy = 0.01
-action_bounds_policy = np.array([[-40., 40]]) # These actions are expanded in comparison with real action
+action_bounds_policy = np.array([[-10., 30]]) # These actions are expanded in comparison with real action
 
 # Optimizer params
 opt_method_policy = torch.optim.Adam
 opt_options_policy = dict(lr=5.0e-2) # 1.0e-2
 
 # MonteCarloSimulationScenario params
-N_episodes = 2 # Increasing the number of episodes stabilizes learning, was 5
-N_iterations = 2 # was 300
+N_episodes = 5 # Increasing the number of episodes stabilizes learning, was 5
+N_iterations = 300 # was 300
 discount_factor = 1.0
 
 # PRINT HYPERPARAMS
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     dt_string = now.strftime("%Y-%m-%d_%H%M%S")
     print(f'Time start: {dt_string}')
     
-    seed_list = list(range(1,14))
+    seed_list = list(range(1,15))
     print(seed_list)
 
     with Pool(14) as p:
