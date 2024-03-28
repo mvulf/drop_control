@@ -26,8 +26,28 @@ class PDController:
         action = np.array([action])
         
         return action
-    
 
+
+
+class PulseController:
+    def __init__(
+        self,
+        pulse_duration:int = 4,
+        pulse_amplitude:float = 9.0,
+    ):
+        self.pulse_duration = pulse_duration
+        self.pulse_amplitude = pulse_amplitude
+        
+        
+    def get_action(self, time):
+        if time <= self.pulse_duration:
+            action = self.pulse_amplitude
+        else:
+            action = 0.
+
+        return np.array([action])
+    
+    
 
 class IterationBuffer(Dataset):
     """Buffer for experience replay.
