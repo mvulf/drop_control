@@ -122,8 +122,8 @@ def launch(seed):
 
 if __name__ == '__main__':
     
-    seed_list = list(range(1,15))
+    seed_list = list(range(1,15)) # ['2', '4', '7', '11', '14']
     print(seed_list)
 
-    with Pool(14) as p:
+    with Pool(14) as p: # 5
         print(p.map(launch, seed_list))
