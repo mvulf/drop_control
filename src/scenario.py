@@ -169,7 +169,7 @@ class SimulationScenario:
             obs_linestyle = '-'
             if clean_observations is not None:
                 clean_observations.iloc[:,i].plot(
-                    label='clean observations',
+                    label='ground truth observations',
                     ax=axes[i],
                     grid=True,
                     marker='.',
@@ -284,7 +284,7 @@ class SimulationScenario:
                 os.path.join(self.data_path, "observations.csv")
             )
             clean_observations.to_csv(
-                os.path.join(self.data_path, "clean_observations.csv")
+                os.path.join(self.data_path, "ground_truth_observations.csv")
             )
 
             act_fig.savefig(
@@ -487,7 +487,7 @@ class MonteCarloSimulationScenario(SimulationScenario):
                         'observations': last_observations, 
                         'actions': last_actions,
                         'states': np.array(self.states),
-                        'clean_observations': np.array(self.clean_observations),
+                        'ground_truth_observations': np.array(self.clean_observations),
                     }
                 )
                 if self.log_each_iteration:
@@ -570,7 +570,7 @@ class MonteCarloSimulationScenario(SimulationScenario):
             data=np.array(self.clean_observations)
         )
         clean_observations.to_csv(
-            os.path.join(self.data_path, "clean_observations.csv")
+            os.path.join(self.data_path, "ground_truth_observations.csv")
         )
         
         actions_arr = self.get_real_actions(self.actions)
