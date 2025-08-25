@@ -4,7 +4,6 @@ from regelum.system import System
 
 import numpy as np
 from regelum.utils import rg
-import casadi as ca
 
 
 class HydraulicSystem(System):
@@ -370,8 +369,9 @@ class HydraulicSystem(System):
             observation (jet length, jet velocity)
         """
         
-        observation = np.zeros(
+        observation = rg.zeros(
             self.dim_observation,
+            prototype=state,
         )
         
         # Current and init state parameters
@@ -433,102 +433,3 @@ class HydraulicSystem(System):
             state=state,
             inputs=None,
         )
-
-    def compute_dynamics_casadi(self, state, action):
-        """CasADi-compatible version of compute_dynamics
-        
-        Args:
-            state: CasADi symbolic state vector
-            action: CasADi symbolic action vector
-
-        Returns:
-            CasADi symbolic dynamics vector
-        """
-        return self._compute_state_dynamics_casadi(
-            time=None,
-            state=state,
-            inputs=action,
-        )
-
-    def _compute_state_dynamics_casadi(self, time, state, inputs):
-        """CasADi-compatible state dynamics computation"""
-        
-        # Get current state parameters
-        x_p, v_p, x_th, p_hydr, p_work = [
-            state[i] for i in range(self.dim_state)
-        ]
-        
-        # CLIP THROTTLE POSITION
-        x_th_limits = self._parameters["x_th_limits"]
-        x_th = ca.fmax(x_th_limits[0], ca.fmin(x_th_limits[1], x_th))
-        x_th_act = inputs[0]
-        
-        # HYDRAULIC FORCE
-        A_hydr, A_work = self._parameters["A_hydr"], self._parameters["A_work"]
-        F_hydr = A_hydr*p_hydr - A_work*p_work
-        
-        # Required dynamic parameters
-        F_coulomb, eta, F_g, g, m_p = (
-            self._parameters["F_coulomb"],
-            self._parameters["eta"],
-            self._parameters["F_g"],
-            self._parameters["g"],
-            self._parameters["m_p"],
-        )
-        
-        # FRICTION FORCE - use CasADi conditional logic
-        F_fr_hydr = (1-eta)*F_hydr
-        F_fr_dynamic = -ca.sign(v_p) * ca.fmax(F_coulomb, F_fr_hydr)
-        F_fr_static = -ca.sign(F_g + F_hydr) * F_coulomb
-        F_friction = ca.if_else(v_p != 0, F_fr_dynamic, F_fr_static)
-        
-        # ACCELERATION - use CasADi conditional logic
-        cond_velocity = ca.if_else(v_p != 0, 1, 0)
-        cond_fr_overcome = ca.if_else(
-            ca.fabs(F_hydr + F_g) > ca.fabs(F_friction), 1, 0
-        )
-        
-        acceleration = ca.if_else(
-            (cond_velocity + cond_fr_overcome) > 0,
-            1e6*(g + 1/m_p * (F_hydr + F_friction)),
-            0
-        )
-        
-        # Build dynamics vector using CasADi concatenation
-        Dstate = ca.vertcat(
-            v_p,  # \dot{x_p}
-            acceleration,  # \dot{v_p}
-            self._parameters["freq_th"] * (x_th_act - x_th),  # \dot{x_th}
-            self._compute_pressure_dynamics_hydraulic_casadi(x_p, v_p, x_th, p_hydr),  # \dot{p_hydr}
-            self._compute_pressure_dynamics_working_casadi(x_p, v_p, p_work)  # \dot{p_work}
-        )
-        
-        return Dstate
-
-    def _compute_pressure_dynamics_hydraulic_casadi(self, x_p, v_p, x_th, p_hydr):
-        """CasADi-compatible hydraulic pressure dynamics"""
-        p_l, B_th, K_hydr = (
-            self._parameters["p_l"],
-            self._parameters["B_th"],
-            self._parameters["K_hydr"],
-        )
-        
-        return K_hydr * (
-            ca.sign(p_l - p_hydr) * B_th * x_th * ca.sqrt(ca.fabs(p_l - p_hydr))
-            - v_p
-        ) / x_p
-
-    def _compute_pressure_dynamics_working_casadi(self, x_p, v_p, p_work):
-        """CasADi-compatible working pressure dynamics"""
-        x_p_init = self.init_state[0]
-        p_atm, B_exit, K_work, h_work_init = (
-            self._parameters["p_atm"],
-            self._parameters["B_exit"],
-            self._parameters["K_work"],
-            self._parameters["h_work_init"],
-        )
-        
-        return K_work * (
-            v_p 
-            - ca.sign(p_work - p_atm) * B_exit * ca.sqrt(ca.fabs(p_work - p_atm))
-        ) / (h_work_init - x_p + x_p_init)

@@ -1,20 +1,23 @@
 from typing import Tuple, Dict, Optional, Callable, Type, Any
 
-from regelum.system import System
+# from regelum.system import System
 
 import numpy as np
-from regelum.utils import rg
-import casadi as ca
+# from regelum.utils import rg
+
+def if_else(c, x, y):
+    return x if c else y
 
 
-class HydraulicSystem(System):
+# class HydraulicSystem(System):
+class HydraulicSystem:
     
     _name = 'HydraulicSystem'
     _system_type = 'diff_eqn'
-    _dim_state = 5
-    _dim_inputs = 1
+    dim_state = 5
+    dim_inputs = 1
     # _dim_observation = 4
-    _dim_observation = 2
+    dim_observation = 2
     _state_naming = [
         "piston position [µm]", 
         "piston velocity [µm/s]", 
@@ -116,11 +119,12 @@ class HydraulicSystem(System):
                 "g": 9.81, # gravity constant, m/s^2
             }
         
-        super().__init__(
-            *args,
-            system_parameters_init=system_parameters_init,
-            **kwargs
-        )
+        # super().__init__(
+        #     *args,
+        #     system_parameters_init=system_parameters_init,
+        #     **kwargs
+        # )
+        self._parameters = system_parameters_init.copy()
         
         # Get absolute pressure
         p_atm, p_l_gauge = (
@@ -228,12 +232,14 @@ class HydraulicSystem(System):
             }
         )
     
+    def update_system_parameters(self, parameters):
+        self._parameters.update(parameters)
+    
     
     def _compute_state_dynamics(self, time, state, inputs):
         
-        Dstate = rg.zeros(
+        Dstate = np.zeros(
             self.dim_state,
-            prototype=(state, inputs),
         )
         
         # Get current state parameters
@@ -245,8 +251,8 @@ class HydraulicSystem(System):
         x_th_limits = self._parameters["x_th_limits"]
         # # If real throttle position out of bounds - 
         # # end throttle movement and set in bounds
-        x_th = rg.if_else(x_th > x_th_limits[0], x_th, x_th_limits[0])
-        x_th = rg.if_else(x_th < x_th_limits[1], x_th, x_th_limits[1])
+        x_th = if_else(x_th > x_th_limits[0], x_th, x_th_limits[0])
+        x_th = if_else(x_th < x_th_limits[1], x_th, x_th_limits[1])
         x_th_act = inputs[0]
         
         # HYDRAULIC FORCE
@@ -265,29 +271,29 @@ class HydraulicSystem(System):
         # # FRICTION FORCE
         F_fr_hydr = (1-eta)*F_hydr
         # If piston moves
-        F_fr_dynamic = -rg.sign(v_p) * rg.if_else(
+        F_fr_dynamic = -np.sign(v_p) * if_else(
             F_coulomb > F_fr_hydr,
             F_coulomb,
             F_fr_hydr
         )
         # If piston does not move
-        F_fr_static = -rg.sign(F_g + F_hydr) * F_coulomb
+        F_fr_static = -np.sign(F_g + F_hydr) * F_coulomb
         
-        F_friction = rg.if_else(v_p != 0, F_fr_dynamic, F_fr_static)
+        F_friction = if_else(v_p != 0, F_fr_dynamic, F_fr_static)
             
         # # ACCELERATION
-        cond_velocity = rg.if_else(
+        cond_velocity = if_else(
             v_p != 0,
             1,
             0
         )
-        cond_fr_overcome = rg.if_else(
-            rg.abs(F_hydr + F_g) > rg.abs(F_friction),
+        cond_fr_overcome = if_else(
+            np.abs(F_hydr + F_g) > np.abs(F_friction),
             1,
             0
         )
         # return 0, if piston does not move and acting force lower than friction
-        acceleration = rg.if_else(
+        acceleration = if_else(
             (cond_velocity + cond_fr_overcome) > 0, # OR
             1e6*(g + 1/m_p * (F_hydr + F_friction)),
             0
@@ -312,7 +318,7 @@ class HydraulicSystem(System):
         )
         Dstate[3] = (
             K_hydr*(
-                rg.sign(p_l - p_hydr)*B_th*x_th*rg.abs(p_l - p_hydr)**(1/2)
+                np.sign(p_l - p_hydr)*B_th*x_th*np.abs(p_l - p_hydr)**(1/2)
                 - v_p
             ) / x_p
         )
@@ -328,7 +334,7 @@ class HydraulicSystem(System):
         Dstate[4] = (
             K_work*(
                 v_p 
-                - rg.sign(p_work - p_atm)*B_exit*rg.abs(p_work - p_atm)**(1/2)
+                - np.sign(p_work - p_atm)*B_exit*np.abs(p_work - p_atm)**(1/2)
             )/(h_work_init - x_p + x_p_init)
         )
         
@@ -433,102 +439,3 @@ class HydraulicSystem(System):
             state=state,
             inputs=None,
         )
-
-    def compute_dynamics_casadi(self, state, action):
-        """CasADi-compatible version of compute_dynamics
-        
-        Args:
-            state: CasADi symbolic state vector
-            action: CasADi symbolic action vector
-
-        Returns:
-            CasADi symbolic dynamics vector
-        """
-        return self._compute_state_dynamics_casadi(
-            time=None,
-            state=state,
-            inputs=action,
-        )
-
-    def _compute_state_dynamics_casadi(self, time, state, inputs):
-        """CasADi-compatible state dynamics computation"""
-        
-        # Get current state parameters
-        x_p, v_p, x_th, p_hydr, p_work = [
-            state[i] for i in range(self.dim_state)
-        ]
-        
-        # CLIP THROTTLE POSITION
-        x_th_limits = self._parameters["x_th_limits"]
-        x_th = ca.fmax(x_th_limits[0], ca.fmin(x_th_limits[1], x_th))
-        x_th_act = inputs[0]
-        
-        # HYDRAULIC FORCE
-        A_hydr, A_work = self._parameters["A_hydr"], self._parameters["A_work"]
-        F_hydr = A_hydr*p_hydr - A_work*p_work
-        
-        # Required dynamic parameters
-        F_coulomb, eta, F_g, g, m_p = (
-            self._parameters["F_coulomb"],
-            self._parameters["eta"],
-            self._parameters["F_g"],
-            self._parameters["g"],
-            self._parameters["m_p"],
-        )
-        
-        # FRICTION FORCE - use CasADi conditional logic
-        F_fr_hydr = (1-eta)*F_hydr
-        F_fr_dynamic = -ca.sign(v_p) * ca.fmax(F_coulomb, F_fr_hydr)
-        F_fr_static = -ca.sign(F_g + F_hydr) * F_coulomb
-        F_friction = ca.if_else(v_p != 0, F_fr_dynamic, F_fr_static)
-        
-        # ACCELERATION - use CasADi conditional logic
-        cond_velocity = ca.if_else(v_p != 0, 1, 0)
-        cond_fr_overcome = ca.if_else(
-            ca.fabs(F_hydr + F_g) > ca.fabs(F_friction), 1, 0
-        )
-        
-        acceleration = ca.if_else(
-            (cond_velocity + cond_fr_overcome) > 0,
-            1e6*(g + 1/m_p * (F_hydr + F_friction)),
-            0
-        )
-        
-        # Build dynamics vector using CasADi concatenation
-        Dstate = ca.vertcat(
-            v_p,  # \dot{x_p}
-            acceleration,  # \dot{v_p}
-            self._parameters["freq_th"] * (x_th_act - x_th),  # \dot{x_th}
-            self._compute_pressure_dynamics_hydraulic_casadi(x_p, v_p, x_th, p_hydr),  # \dot{p_hydr}
-            self._compute_pressure_dynamics_working_casadi(x_p, v_p, p_work)  # \dot{p_work}
-        )
-        
-        return Dstate
-
-    def _compute_pressure_dynamics_hydraulic_casadi(self, x_p, v_p, x_th, p_hydr):
-        """CasADi-compatible hydraulic pressure dynamics"""
-        p_l, B_th, K_hydr = (
-            self._parameters["p_l"],
-            self._parameters["B_th"],
-            self._parameters["K_hydr"],
-        )
-        
-        return K_hydr * (
-            ca.sign(p_l - p_hydr) * B_th * x_th * ca.sqrt(ca.fabs(p_l - p_hydr))
-            - v_p
-        ) / x_p
-
-    def _compute_pressure_dynamics_working_casadi(self, x_p, v_p, p_work):
-        """CasADi-compatible working pressure dynamics"""
-        x_p_init = self.init_state[0]
-        p_atm, B_exit, K_work, h_work_init = (
-            self._parameters["p_atm"],
-            self._parameters["B_exit"],
-            self._parameters["K_work"],
-            self._parameters["h_work_init"],
-        )
-        
-        return K_work * (
-            v_p 
-            - ca.sign(p_work - p_atm) * B_exit * ca.sqrt(ca.fabs(p_work - p_atm))
-        ) / (h_work_init - x_p + x_p_init)

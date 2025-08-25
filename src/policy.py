@@ -1,5 +1,8 @@
 import numpy as np
+# from regelum.utils import rg
 import pandas as pd
+
+# from regelum.system import System
 
 import torch
 # Dataset - to create own dataset, DataLoader - for batch generation
@@ -10,19 +13,49 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 from typing import Tuple, Dict, Optional, Callable, Type, Any
 
 
+def get_relative_observation(observation, l_crit:float, sampling_time:float):
+    # NOTE. WAS in ACM for CasADi:
+    # relative_observation = rg.zeros(
+    #     observation.shape,
+    #     prototype=observation,
+    # )
+    relative_observation = np.zeros(
+        observation.shape,
+    )
+    
+    relative_observation[0] = observation[0] / l_crit
+    relative_observation[1] = observation[1] / l_crit * sampling_time
+    
+    return relative_observation
+
 
 class PDController:
     def __init__(
         self,
+        sampling_time:float,
+        system,
         P_coef:float,
         D_coef:float,
     ):
         self.P_coef = P_coef
         self.D_coef = D_coef
         
+        self.sampling_time = sampling_time
+        self.l_crit = system._parameters["l_crit"]
+        self.system = system
         
     def get_action(self, observation):
-        action = self.P_coef * (1 - observation[0]) - self.D_coef * observation[1]
+        
+        relative_observation = get_relative_observation(
+            observation,
+            self.l_crit,
+            self.sampling_time,
+        )
+        
+        action = (
+            self.P_coef * (1 - relative_observation[0]) 
+            - self.D_coef * relative_observation[1]
+        )
         action = np.array([action])
         
         return action
@@ -43,7 +76,7 @@ class PulseController:
         if time <= self.pulse_duration:
             action = self.pulse_amplitude
         else:
-            action = 0.
+            action = -1.
 
         return np.array([action])
     

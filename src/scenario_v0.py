@@ -52,11 +52,6 @@ class SimulationScenario:
         
         self.dt_string = dt_string
         
-        # Critical jet length
-        self.l_crit = self.simulator.system._parameters["l_crit"]
-        # Time step
-        self.step_size = self.simulator.step_size
-        
         self.clean_data()
         
         
@@ -82,8 +77,14 @@ class SimulationScenario:
             float: running objective value
         """
         
-        # NOTE. WAS: length_diff = (1 - observation[0])
-        length_diff = (self.l_crit - observation[0])
+        length_diff = (1 - observation[0])
+
+        
+        # # WAS
+        # # If length smaller than critical, penalty for the negative velocity
+        # # If length larger than critical, penalty for the positive velocity
+        # return length_diff ** 2 -\
+        #     np.sign(length_diff) * observation[1] * abs(observation[1]) * 1 # get relative velocity in [1/ms] # Previous miltiply was 1e2
         
         return length_diff ** 2
     
@@ -101,9 +102,6 @@ class SimulationScenario:
             discounted_running_objective = self.discount_factor ** (
                 step_idx
             ) * self.compute_running_objective(observation, action)
-            # NOTE. ADDED: division by squared l_crit and multiplication by time step
-            discounted_running_objective *= self.step_size / self.l_crit ** 2
-            
             # for learning curve plotting
             total_objective += discounted_running_objective
         
@@ -156,13 +154,9 @@ class SimulationScenario:
         self,
         observations:pd.DataFrame,
         clean_observations:pd.DataFrame = None,
-        # y_labels:tuple = (
-        #     r"$x^\mathrm{rel}_\mathrm{jet}$",
-        #     r"$v^\mathrm{rel}_\mathrm{jet}$"
-        # ),
         y_labels:tuple = (
-            r"$x_\mathrm{jet}$ [mm]",
-            r"$v_\mathrm{jet}$ [mm/s]"
+            r"$x^\mathrm{rel}_\mathrm{jet}$",
+            r"$v^\mathrm{rel}_\mathrm{jet}$"
         ),
         title:str = "Observations"
     ):

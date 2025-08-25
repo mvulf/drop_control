@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.integrate import solve_ivp
-import casadi as ca
 from typing import Tuple, Dict, Optional, Callable, Type, Any
 
 from src.system import HydraulicSystem
@@ -36,8 +35,7 @@ class Simulator:
         self.rtol = rtol
         
         self.state_init = np.zeros(system.dim_state)
-        # NOTE. WAS (because of specific tracking of x_th): self.state_init[:-1] = state_init.copy()
-        self.state_init = state_init.copy()
+        self.state_init[:-1] = state_init.copy()
         
         self.reset()
         
@@ -46,9 +44,9 @@ class Simulator:
         """Resets the system to initial state"""
         self.current_step_idx = 0
         self.state = self.state_init.copy()
-        self.action = np.zeros(self.system.dim_inputs)
+        self.action = np.zeros(self.system.dim_action)
         self.ode_results = []
-        # self.system.reset(step_size=self.step_size)
+        self.system.reset(step_size=self.step_size)
     
     
     def set_action(self, action: np.ndarray) -> None:
@@ -88,8 +86,6 @@ class Simulator:
             y0=state,
             rtol=self.rtol,
             atol=self.atol,
-            # method='RK45',
-            method='LSODA',
             # # DELETE
             # first_step=self.first_step,
             # max_step=self.max_step,
