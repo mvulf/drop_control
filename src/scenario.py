@@ -83,6 +83,8 @@ class SimulationScenario:
         """
         
         # NOTE. WAS: length_diff = (1 - observation[0])
+        # length_diff = (self.l_crit - observation[0])
+        # NOTE: make target a little bit larger than l_crit
         length_diff = (self.l_crit - observation[0])
         
         return length_diff ** 2

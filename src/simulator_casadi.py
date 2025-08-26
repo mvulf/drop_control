@@ -75,8 +75,6 @@ class CasADiSimulator:
             self._build_rk4_integrator()
         elif self.integration_method == 'euler':
             self._build_euler_integrator()
-        elif self.integration_method == 'collocation':
-            self._build_collocation_integrator()
         else:
             raise ValueError(f"Unknown integration method: {self.integration_method}")
     
@@ -112,29 +110,7 @@ class CasADiSimulator:
         
         # Create integrator function
         self.integrator_fn = ca.Function('euler_integrator', [x, u, dt], [x_next])
-    
-    def _build_collocation_integrator(self):
-        """Build collocation integrator using CasADi (more accurate for stiff systems)"""
-        # State and action variables
-        x = ca.SX.sym('x', self.system.dim_state)
-        u = ca.SX.sym('u', self.system.dim_inputs)
-        dt = ca.SX.sym('dt')
-        
-        # Use CasADi's built-in collocation integrator
-        # This is more suitable for stiff systems
-        dae = {
-            'x': x,
-            'ode': self.dynamics_fn(x, u),
-            'p': u
-        }
-        
-        # Create collocation integrator
-        self.integrator_fn = ca.integrator('collocation_integrator', 'collocation', dae, {
-            'tf': dt,
-            'collocation_scheme': 'legendre',
-            'collocation_deg': 3,
-            'collocation_num_intervals': 1
-        })
+
     
     def reset(self) -> None:
         """Reset simulator to initial state"""
