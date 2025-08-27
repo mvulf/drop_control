@@ -476,7 +476,7 @@ class MonteCarloSimulationScenario(SimulationScenario):
             sign = "-" if np.sign(change) == -1 else "+"
             print(
                 f"Iteration: {iteration_idx + 1} / {self.N_iterations}, "
-                + f"mean total cost {round(means_total_objectives[-1], 2)}, "
+                + f"mean total cost {round(means_total_objectives[-1]*1e3, 2)}, "
                 + f"% change: {sign}{abs(round(change,2))}, "
                 + f"last observation: {self.last_observations.iloc[-1].values.reshape(-1)}",
                 end="\n",
