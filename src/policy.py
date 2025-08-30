@@ -29,6 +29,7 @@ def get_relative_observation(observation, l_crit:float, sampling_time:float):
     return relative_observation
 
 
+
 class PDController:
     def __init__(
         self,
@@ -80,7 +81,7 @@ class PulseController:
 
         return np.array([action])
     
-    
+
 
 class IterationBuffer(Dataset):
     """Buffer for experience replay.
@@ -100,14 +101,16 @@ class IterationBuffer(Dataset):
         """Clear all buffer data"""
 
         self.episode_ids = []
+        self.terminal_episode_ids = []
         self.observations = []
         self.actions = []
         self.running_objectives = []
+        self.terminal_objectives = []
         self.step_ids = []
         self.total_objectives = None
         self.baselines = None
     
-      
+    
     def add_step_data(
         self,
         observation: np.array,
@@ -130,7 +133,15 @@ class IterationBuffer(Dataset):
         self.running_objectives.append(running_objective)
         self.episode_ids.append(int(episode_id))
         self.step_ids.append(step_id)
-        
+    
+    def add_terminal_objective(
+        self,
+        terminal_objective: float,
+        episode_id: int,
+    ):
+        self.terminal_objectives.append(terminal_objective)
+        self.terminal_episode_ids.append(int(episode_id))
+    
     
     def get_N_episodes(self) -> int:
         """Get number of episodes
@@ -157,11 +168,20 @@ class IterationBuffer(Dataset):
             index=self.episode_ids, data=self.running_objectives
         )
         
+        # NOTE: ADD TERMINAL OBJECTIVE based on observations
+        terminal_objectives_series = pd.Series(
+            index=self.terminal_episode_ids, data=self.terminal_objectives
+        )
+        
         # Sum of inverted rows in one episode for all episodes (like summation from the end)
         # Then - invert to get tail sums for each element!
+        # Finally, add terminal objectives
         tail_total_objectives = pd.concat(
             [
-                running_objectives_series.loc[i][::-1].cumsum()[::-1]
+                (
+                    running_objectives_series.loc[i][::-1].cumsum()[::-1]
+                    + terminal_objectives_series.loc[i]
+                )
                 for i in unique_episode_ids
             ]
         ).values.reshape(-1)

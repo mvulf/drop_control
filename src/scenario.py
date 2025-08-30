@@ -33,6 +33,8 @@ class SimulationScenario:
         policy,
         root_data_path:str,
         discount_factor: float = 1.0,
+        terminal_coef: float = 1.0,
+        jet_velocity_coef: float = 1e2,
         dpi: int = 400,
         seed: int = None,
         dt_string: str = None,
@@ -56,6 +58,10 @@ class SimulationScenario:
         self.l_crit = self.simulator.system._parameters["l_crit"]
         # Time step
         self.step_size = self.simulator.step_size
+        
+        # Coefficients for terminal objective
+        self.terminal_coef = terminal_coef * self.simulator.N_steps
+        self.jet_velocity_coef = jet_velocity_coef * self.step_size**2
         
         self.clean_data()
         
@@ -103,13 +109,36 @@ class SimulationScenario:
             discounted_running_objective = self.discount_factor ** (
                 step_idx
             ) * self.compute_running_objective(observation, action)
-            # NOTE. ADDED: division by squared l_crit and multiplication by time step
-            discounted_running_objective *= self.step_size / self.l_crit ** 2
             
             # for learning curve plotting
             total_objective += discounted_running_objective
         
+        terminal_objective = self._compute_terminal_objective(
+            last_observation=observations[-1],
+        )
+        # NOTE. ADDED: terminal objective
+        total_objective += terminal_objective
+        # NOTE. ADDED: division by squared l_crit and multiplication by time step
+        total_objective *= self.step_size / self.l_crit ** 2
+        
         return total_objective
+    
+    
+    def _compute_terminal_objective(
+        self,
+        last_observation,
+    ):
+        x_jet = last_observation[0]
+        v_jet = last_observation[1]
+        
+        length_diff = (self.l_crit - x_jet)
+        
+        terminal_objective = self.terminal_coef * (
+            length_diff ** 2
+            + self.jet_velocity_coef * v_jet ** 2
+        )
+        
+        return terminal_objective
     
     
     def get_real_actions(self, actions:list):
@@ -442,6 +471,16 @@ class MonteCarloSimulationScenario(SimulationScenario):
                         )
                         
                     self.simulator.set_action(new_action) # set action for the next step
+                
+                # NOTE: get terminal objective and set to buffer
+                terminal_objective = self._compute_terminal_objective(
+                    last_observation=self.observations[-1],
+                )
+                
+                self.policy.buffer.add_terminal_objective(
+                    terminal_objective=terminal_objective,
+                    episode_id=episode_idx,
+                )
                 
                 self.simulator.reset() # before next episode
                 
