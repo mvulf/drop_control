@@ -244,12 +244,15 @@ class HydraulicSystem(System):
             observation = self.get_clean_observation(state)
             
             # relative jet length with noise
-            observation[0] += np.random.normal(
+            observation[0] += self._parameters["l_crit"] * np.random.normal(
                 scale=self._parameters["jet_length_std"]
             )
             # relative jet velocity with noise
-            observation[1] += np.random.normal(
-                scale=self._parameters["jet_velocity_std"]
+            observation[1] += (
+                1e3 * self._parameters["l_crit"]
+                * np.random.normal(
+                    scale=self._parameters["jet_velocity_std"]
+                )
             )
             
             # # Pressures with noise
