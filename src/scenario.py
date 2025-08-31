@@ -37,7 +37,7 @@ class SimulationScenario:
         root_data_path:str,
         discount_factor: float = 1.0,
         # terminal_coef: float = 1.0,
-        jet_velocity_coef: float = 5e2, # WAS 1e2
+        jet_velocity_coef: float = 1e3, # WAS 1e2
         dpi: int = 400,
         seed: int = None,
         dt_string: str = None,
@@ -79,6 +79,39 @@ class SimulationScenario:
         self.total_objective = 0
     
     
+    # def compute_running_objective(
+    #     self, observation: np.array, action: np.array
+    # ) -> float:
+    #     """Computes running objective
+
+    #     Args:
+    #         observation (np.array): current observation
+    #         action (np.array): current action
+
+    #     Returns:
+    #         float: running objective value
+    #     """
+        
+    #     x_jet = observation[0]
+    #     v_jet = observation[1]
+        
+    #     # NOTE. WAS: length_diff = (1 - observation[0])
+    #     # length_diff = (self.l_crit - observation[0])
+    #     # NOTE: make target a little bit larger than l_crit
+    #     length_diff = (self.l_crit - observation[0])
+        
+    #     running_objective = (
+    #         length_diff ** 2
+    #         + if_else(
+    #             length_diff > 0,
+    #             0,
+    #             self.jet_velocity_coef * max(0, v_jet)**2
+    #         )
+    #     )
+        
+    #     return running_objective
+    
+    
     def compute_running_objective(
         self, observation: np.array, action: np.array
     ) -> float:
@@ -100,16 +133,22 @@ class SimulationScenario:
         # NOTE: make target a little bit larger than l_crit
         length_diff = (self.l_crit - observation[0])
         
-        running_objective = (
-            length_diff ** 2
-            + if_else(
-                length_diff > 0,
-                0,
-                self.jet_velocity_coef * max(0, v_jet)**2
-            )
-        )
+        # Basic position error
+        position_cost = length_diff ** 2
         
-        return running_objective
+        # Enhanced velocity penalty that anticipates reaching l_crit
+        if length_diff > 0:
+            # Before reaching l_crit: progressive velocity penalty as we get closer
+            # This encourages deceleration as we approach the target
+            proximity_factor = max(0, (1 - length_diff / self.l_crit))  # 0 when far, 1 when at target
+            velocity_cost = proximity_factor * self.jet_velocity_coef * 0.1 * max(0, v_jet)**2
+        else:
+            # After reaching l_crit: strong velocity penalty
+            velocity_cost = self.jet_velocity_coef * max(0, v_jet)**2
+        
+        running_objective = position_cost + velocity_cost
+        
+        return running_objective    
     
     
     def compute_total_objective(
