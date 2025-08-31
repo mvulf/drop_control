@@ -34,7 +34,7 @@ class SimulationScenario:
         root_data_path:str,
         discount_factor: float = 1.0,
         terminal_coef: float = 1.0,
-        jet_velocity_coef: float = 1e2,
+        jet_velocity_coef: float = 1e1, # WAS 1e2
         dpi: int = 400,
         seed: int = None,
         dt_string: str = None,
@@ -131,11 +131,14 @@ class SimulationScenario:
         x_jet = last_observation[0]
         v_jet = last_observation[1]
         
-        length_diff = (self.l_crit - x_jet)
+        # length_diff = (self.l_crit - x_jet)
+        # terminal_objective = self.terminal_coef * (
+        #     length_diff ** 2
+        #     + self.jet_velocity_coef * max(0, v_jet) ** 2
+        # )
         
         terminal_objective = self.terminal_coef * (
-            length_diff ** 2
-            + self.jet_velocity_coef * v_jet ** 2
+            self.jet_velocity_coef * max(0, v_jet) ** 2
         )
         
         return terminal_objective
