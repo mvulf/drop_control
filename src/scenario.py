@@ -34,7 +34,7 @@ class SimulationScenario:
         root_data_path:str,
         discount_factor: float = 1.0,
         terminal_coef: float = 1.0,
-        jet_velocity_coef: float = 1e1, # WAS 1e2
+        jet_velocity_coef: float = 5e1, # WAS 1e2
         dpi: int = 400,
         seed: int = None,
         dt_string: str = None,
