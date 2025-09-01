@@ -37,7 +37,8 @@ class SimulationScenario:
         root_data_path:str,
         discount_factor: float = 1.0,
         # terminal_coef: float = 1.0,
-        jet_velocity_coef: float = 3e3, # WAS 1e2
+        # jet_velocity_coef: float = 3e3, # WAS 1e2
+        jet_velocity_coef: float = 1e2,
         dpi: int = 400,
         seed: int = None,
         dt_string: str = None,
@@ -187,12 +188,18 @@ class SimulationScenario:
         # Basic position error
         position_cost = length_diff ** 2
         
-        running_objective = (
-            position_cost
-            - np.sign(length_diff) * v_jet * abs(v_jet) * self.jet_velocity_coef
-        )
+        # Velocity penalty
+        velocity_penalty = np.sign(length_diff) * v_jet * abs(v_jet) * self.jet_velocity_coef
         
-        return running_objective   
+        # Clip velocity penalty to prevent extreme values
+        max_penalty = 50.0  # Maximum penalty allowed
+        velocity_penalty = np.clip(velocity_penalty, -max_penalty, max_penalty)
+        
+        # Shift to positive range
+        base_reward = max_penalty
+        running_objective = base_reward + position_cost - velocity_penalty
+        
+        return running_objective
     
     
     def compute_total_objective(
