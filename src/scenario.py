@@ -37,7 +37,7 @@ class SimulationScenario:
         root_data_path:str,
         discount_factor: float = 1.0,
         # terminal_coef: float = 1.0,
-        jet_velocity_coef: float = 2e3, # WAS 1e2
+        jet_velocity_coef: float = 3e3, # WAS 1e2
         dpi: int = 400,
         seed: int = None,
         dt_string: str = None,
@@ -111,6 +111,57 @@ class SimulationScenario:
         
     #     return running_objective
     
+    # # Good enough version
+    # def compute_running_objective(
+    #     self, observation: np.array, action: np.array
+    # ) -> float:
+    #     """Computes running objective
+
+    #     Args:
+    #         observation (np.array): current observation
+    #         action (np.array): current action
+
+    #     Returns:
+    #         float: running objective value
+    #     """
+        
+    #     x_jet = observation[0]
+    #     v_jet = observation[1]
+        
+    #     # NOTE. WAS: length_diff = (1 - observation[0])
+    #     # length_diff = (self.l_crit - observation[0])
+    #     # NOTE: make target a little bit larger than l_crit
+    #     length_diff = (self.l_crit - x_jet)
+        
+    #     # Basic position error
+    #     position_cost = length_diff ** 2
+        
+    #     # Enhanced velocity penalty that anticipates reaching l_crit
+    #     if length_diff > 0:
+            
+    #         # # Before reaching l_crit: progressive velocity penalty as we get closer
+    #         # # This encourages deceleration as we approach the target
+    #         # proximity_factor = max(0, (1 - length_diff / self.l_crit))  # 0 when far, 1 when at target
+    #         # velocity_cost = proximity_factor * self.jet_velocity_coef * 0.1 * max(0, v_jet)**2
+            
+    #         rel_x_jet = x_jet / self.l_crit
+            
+    #         if rel_x_jet > 0.5:  # Start at 50% instead of when close
+    #              # Exponential penalty that grows rapidly as we approach target
+    #             penalty_strength = ((rel_x_jet - 0.5) / 0.5)**3  # Cubic growth for stronger effect
+    #             velocity_cost = penalty_strength * self.jet_velocity_coef * 0.3 * max(0, v_jet)**2
+    #         else:
+    #             velocity_cost = 0
+    #     else:
+    #         # After reaching l_crit: strong velocity penalty
+    #         velocity_cost = self.jet_velocity_coef * max(0, v_jet)**2
+        
+    #     # Action smoothing penalty to reduce oscillations
+    #     action_smoothing = 1e-3 * action[0]**2
+        
+    #     running_objective = position_cost + velocity_cost + action_smoothing
+        
+    #     return running_objective
     
     def compute_running_objective(
         self, observation: np.array, action: np.array
@@ -136,32 +187,12 @@ class SimulationScenario:
         # Basic position error
         position_cost = length_diff ** 2
         
-        # Enhanced velocity penalty that anticipates reaching l_crit
-        if length_diff > 0:
-            
-            # # Before reaching l_crit: progressive velocity penalty as we get closer
-            # # This encourages deceleration as we approach the target
-            # proximity_factor = max(0, (1 - length_diff / self.l_crit))  # 0 when far, 1 when at target
-            # velocity_cost = proximity_factor * self.jet_velocity_coef * 0.1 * max(0, v_jet)**2
-            
-            rel_x_jet = x_jet / self.l_crit
-            
-            if rel_x_jet > 0.5:  # Start at 50% instead of when close
-                 # Exponential penalty that grows rapidly as we approach target
-                penalty_strength = ((rel_x_jet - 0.5) / 0.5)**3  # Cubic growth for stronger effect
-                velocity_cost = penalty_strength * self.jet_velocity_coef * 0.3 * max(0, v_jet)**2
-            else:
-                velocity_cost = 0
-        else:
-            # After reaching l_crit: strong velocity penalty
-            velocity_cost = self.jet_velocity_coef * max(0, v_jet)**2
+        running_objective = (
+            position_cost
+            - np.sign(length_diff) * v_jet * abs(v_jet) * self.jet_velocity_coef
+        )
         
-        # Action smoothing penalty to reduce oscillations
-        action_smoothing = 1e-3 * action[0]**2
-        
-        running_objective = position_cost + velocity_cost + action_smoothing
-        
-        return running_objective    
+        return running_objective   
     
     
     def compute_total_objective(
