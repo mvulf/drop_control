@@ -1,0 +1,52 @@
+Policy (GaussianPDFModel) Perceptron
+action_bounds_policy [µm] = [[-20.  30.]]
+n_hidden_layers_policy = 1
+dim_hidden_policy = 2
+scale_factor_policy = 10.0
+std_policy = 0.01
+Number of policy parameters: 18
+
+Policy Optimizer
+opt_method_policy = <class 'torch.optim.adam.Adam'>
+opt_options_policy = {'lr': 0.005, 'weight_decay': 0.0001}
+
+MonteCarloSimulationScenario
+N_episodes = 10
+N_iterations = 500
+discount_factor = 1.0
+
+jet_velocity_coef = 1e2,
+
+
+def compute_running_objective(
+        self, observation: np.array, action: np.array
+    ) -> float:
+        """Computes running objective
+
+        Args:
+            observation (np.array): current observation
+            action (np.array): current action
+
+        Returns:
+            float: running objective value
+        """
+        
+        x_jet = observation[0]
+        v_jet = observation[1]
+        
+        # NOTE. WAS: length_diff = (1 - observation[0])
+        # length_diff = (self.l_crit - observation[0])
+        # NOTE: make target a little bit larger than l_crit
+        length_diff = (self.l_crit - observation[0])
+        
+        running_objective = (
+            length_diff ** 2
+            + self.jet_velocity_coef * max(0, v_jet)**2
+            # + if_else(
+            #     length_diff > 0,
+            #     0,
+            #     self.jet_velocity_coef * max(0, v_jet)**2
+            # )
+        )
+        
+        return running_objective
