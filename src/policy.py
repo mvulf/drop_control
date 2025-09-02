@@ -29,21 +29,37 @@ def get_relative_observation(observation, l_crit:float, sampling_time:float):
     return relative_observation
 
 
+def get_absolute_observation(
+    relative_observation,
+    l_crit:float,
+    sampling_time:float,
+):
+    
+    observation = np.zeros(
+        relative_observation.shape,
+    )
+
+    observation[0] = relative_observation[0] * l_crit
+    observation[1] = relative_observation[1] * l_crit / sampling_time
+
+    return observation
 
 class PDController:
     def __init__(
         self,
-        sampling_time:float,
-        system,
+        # sampling_time:float,
+        # system,
         P_coef:float,
         D_coef:float,
     ):
         self.P_coef = P_coef
         self.D_coef = D_coef
         
-        self.sampling_time = sampling_time
-        self.l_crit = system._parameters["l_crit"]
-        self.system = system
+        # Simulation scenario will set these parameters
+        # self.sampling_time = sampling_time
+        # self.l_crit = system._parameters["l_crit"]
+        
+        # self.system = system # No longer needed
         
     def get_action(self, observation):
         

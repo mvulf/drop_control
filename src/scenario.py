@@ -12,7 +12,7 @@ from tqdm.notebook import tqdm
 from IPython.display import clear_output
 
 from src.simulator import Simulator
-from src.policy import PDController
+from src.policy import PDController, get_relative_observation, get_absolute_observation
 
 from datetime import datetime
 
@@ -37,8 +37,7 @@ class SimulationScenario:
         root_data_path:str,
         discount_factor: float = 1.0,
         # terminal_coef: float = 1.0,
-        # jet_velocity_coef: float = 3e3, # WAS 1e2
-        jet_velocity_coef = 1e2,  # Was 2e3 - reduce to allow more velocity
+        # jet_velocity_coef = 1e2,  # Was 2e3 - reduce to allow more velocity
         dpi: int = 400,
         seed: int = None,
         dt_string: str = None,
@@ -63,10 +62,14 @@ class SimulationScenario:
         # Time step
         self.step_size = self.simulator.step_size
         
+        # Set parameters for policy
+        self.policy.l_crit = self.l_crit
+        self.policy.sampling_time = self.step_size
+        
         # # Coefficients for terminal objective
         # self.terminal_coef = terminal_coef * self.simulator.N_steps
         
-        self.jet_velocity_coef = jet_velocity_coef * self.step_size**2
+        # self.jet_velocity_coef = jet_velocity_coef * self.step_size**2
         
         self.clean_data()
         
@@ -104,7 +107,7 @@ class SimulationScenario:
         
         running_objective = (
             length_diff ** 2
-            # + self.jet_velocity_coef * max(0, v_jet)**2
+            # + self.jet_velocity_coef * max(0, v_jet)**2 # NOTE: values larger than langth_diff. Necessary to consider it in jet_velocity_coef.
             # + if_else(
             #     length_diff > 0,
             #     0,
@@ -588,9 +591,18 @@ class MonteCarloSimulationScenario(SimulationScenario):
                         observation,
                         action, # we do not use this
                     ) = self.simulator.get_sim_step_data()
+                    
+                    relative_observation = get_relative_observation(
+                        observation=observation,
+                        l_crit=self.policy.l_crit,
+                        sampling_time=self.policy.sampling_time,
+                    )
 
                     new_action = (
-                        self.policy.model.sample(torch.tensor(observation).float())
+                        # self.policy.model.sample(torch.tensor(observation).float())
+                        self.policy.model.sample(
+                            torch.tensor(relative_observation).float()
+                        )
                         .detach()
                         .cpu()
                         .numpy()
@@ -602,7 +614,8 @@ class MonteCarloSimulationScenario(SimulationScenario):
                     self.total_objective += discounted_running_objective
 
                     if not terminated and self.termination_criterion(
-                        observation,
+                        # observation,
+                        relative_observation,
                         new_action,
                         discounted_running_objective,
                         self.total_objective,
@@ -612,7 +625,8 @@ class MonteCarloSimulationScenario(SimulationScenario):
                     # Thus, if terminated - stop to add data in buffer
                     if not terminated:
                         self.policy.buffer.add_step_data(
-                            np.copy(observation),
+                            # np.copy(observation),
+                            np.copy(relative_observation),
                             np.copy(new_action),
                             np.copy(discounted_running_objective),
                             step_idx,
@@ -654,9 +668,25 @@ class MonteCarloSimulationScenario(SimulationScenario):
             
             # Get data for progress estimation
             self.learning_curve.append(np.mean(self.total_objectives_episodic))
+            # self.last_observations = pd.DataFrame(
+            #     index=self.policy.buffer.episode_ids,
+            #     data=self.policy.buffer.observations.copy(),
+            # )
+            last_relative_observations = self.policy.buffer.observations.copy()
+            last_observations = list(
+                map(
+                    lambda rel_obs: get_absolute_observation(
+                        relative_observation=rel_obs,
+                        l_crit=self.policy.l_crit,
+                        sampling_time=self.policy.sampling_time,
+                    ),
+                    last_relative_observations
+                )
+            )
+            
             self.last_observations = pd.DataFrame(
                 index=self.policy.buffer.episode_ids,
-                data=self.policy.buffer.observations.copy(),
+                data=last_observations,
             )
             self.last_actions = pd.DataFrame(
                 index=self.policy.buffer.episode_ids,

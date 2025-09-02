@@ -249,7 +249,7 @@ class HydraulicSystem(System):
             )
             # relative jet velocity with noise
             observation[1] += (
-                1e3 * self._parameters["l_crit"]
+                1e3 * self._parameters["l_crit"] # 1e3 is instead of "1/sampling_time"
                 * np.random.normal(
                     scale=self._parameters["jet_velocity_std"]
                 )
@@ -292,12 +292,12 @@ class HydraulicSystem(System):
         D_work_exit_2_ratio = self._parameters["D_work_exit_2_ratio"]
         
         # ABSOLUTE Jet length. NOTE: no "/ self.l_crit"
-        observation[0] = (
+        observation[0] = ( # [mm]
             1e-3 * (x_p - x_p_init) * D_work_exit_2_ratio
         )
         
         # ABSOLUTE Jet velocity. NOTE: no "self.l_crit *\self.step_size"
-        observation[1] = (
+        observation[1] = ( # [mm/s]
             1e-3 * v_p * D_work_exit_2_ratio
         )
         
