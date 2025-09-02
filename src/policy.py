@@ -543,6 +543,43 @@ class GaussianPDFModel(nn.Module):
         return torch.clamp(
             sampled_action, action_bounds[:, 0], action_bounds[:, 1]
         )
+        
+        
+    def get_action(self, observation: np.array) -> np.array:
+        """Get action from the model
+        
+        Args:
+            observation (np.array): current observation
+            
+        Returns:
+            np.array: action
+        """
+        
+        relative_observation = get_relative_observation(
+            observation,
+            self.l_crit,
+            self.sampling_time,
+        )
+        
+        # Convert observation to torch.FloatTensor
+        relative_observation = torch.tensor(relative_observation)
+        
+        action_bounds = self.get_parameter("action_bounds")
+        scale_tril_matrix = self.get_parameter("scale_tril_matrix")
+        
+        # Get unscaled mean and variance
+        (
+            mu_unscaled, 
+            _
+        ) = self.get_unscale_mean_and_variance(relative_observation, scale_tril_matrix)
+        
+        # Sample action
+        sampled_action = torch.clamp(
+            mu_unscaled, action_bounds[:, 0], action_bounds[:, 1]
+        )
+        
+        return sampled_action.detach().numpy()
+        
 
 
 

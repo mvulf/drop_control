@@ -104,7 +104,7 @@ class SimulationScenario:
         
         running_objective = (
             length_diff ** 2
-            + self.jet_velocity_coef * max(0, v_jet)**2
+            # + self.jet_velocity_coef * max(0, v_jet)**2
             # + if_else(
             #     length_diff > 0,
             #     0,
