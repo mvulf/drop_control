@@ -1,3 +1,4 @@
+3-state-system
 P_coef=30,
 D_coef=0,
 Time start: 2024-03-27_122643

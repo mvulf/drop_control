@@ -15,6 +15,17 @@ pip install -r requirements.txt
 - Also you can launch all others 'research' notebooks (see detailed description in "Content" below)
 
 ## Content
+
+- 3-state system RL-model was studied in `reinforce_3_state_hydraulic_system_paper_params.ipynb` (saved model is `models/model_policy_reinforce_3_state_system_paper_params.pkl`)
+- 3-state system RL-seeds study is in `rl_pool_action_bounds_(-20, 30).py`
+- Evaluation of 3-state system models before finetuning is introduced in `evaluation_3_state_policy_new_5_state_system.ipynb`
+- Main notebook for the finetuning, based on 3-state system RL-model `finetune_reinforce_5_state_hydraulic_system.ipynb` (finetuned saved model is `model_policy_reinforce_5_state_system__from_paper_params.pkl`)
+- Finetune seeds study is in `finetune_reinforce_5_state_hydraulic_system_pool.py`
+- PD-seeds for 5-state system are studied in `PD_hydraulic_system_seeds.ipynb`
+- New plots see in `seed_plots_5_state_system.ipynb`
+
+
+## Content OLD
 - Current main notebook with a detailed description of the Droplet Generation System is introduced in the root of the repository ([reinforce_hydraulic_system.ipynb](https://github.com/mvulf/drop_control/blob/main/reinforce_hydraulic_system.ipynb))
 - Conducted research is introduced in the [research](https://github.com/mvulf/drop_control/tree/main/research) folder:
     - Searching of the **best running cost** function is introduced in the notebooks [reinforce_jet_length_penalty.ipynb](https://github.com/mvulf/drop_control/blob/main/research/reinforce_jet_length_penalty.ipynb), [reinforce_pos_vel_penalty.ipynb](https://github.com/mvulf/drop_control/blob/main/research/reinforce_pos_vel_penalty.ipynb), and [reinforce_vel_reward_and_penalty.ipynb](https://github.com/mvulf/drop_control/blob/main/research/reinforce_vel_reward_and_penalty.ipynb). 
