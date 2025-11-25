@@ -1,6 +1,8 @@
 # Droplet Generator optimal control
 The **goal** of this project is to create an optimal control of the droplet generator (it's hydraulic part) by Reinforcement Learning.
 
+Conference paper. DOI: [10.23919/ECC64448.2024.10591295](doi.org/10.23919/ECC64448.2024.10591295)
+
 ## How to launch
 Follow the instructions to run the project:
 - Clone repository:
